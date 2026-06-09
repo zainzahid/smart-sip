@@ -19,12 +19,51 @@ export function SipSection({ allocations, initialAmount, onAmountChange }: Props
   const [loadMsg, setLoadMsg] = useState('');
   const [result, setResult] = useState<SipCalculation | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const total = allocations.reduce((s, a) => s + a.allocation, 0);
   const isAllocOk = Math.abs(total - 100) < 0.001;
   const sipAmount = parseFloat(amount.replace(/,/g, ''));
   const isAmountOk = !isNaN(sipAmount) && sipAmount > 0;
   const canCalculate = isAmountOk && isAllocOk && allocations.length > 0;
+
+  async function handleCopy() {
+    if (!result) return;
+    const headers = ['Symbol', 'Alloc %', 'Price', 'Alloc Amt', 'Shares', 'Invested', 'Remaining'];
+    const rows = result.results.map(r => [
+      r.symbol,
+      `${r.allocation}%`,
+      r.isCash ? '—' : r.price != null ? fmt(r.price) : 'Error',
+      fmt(r.allocationAmount),
+      r.isCash ? '—' : r.sharesToBuy != null ? String(r.sharesToBuy) : '—',
+      r.investedAmount != null ? fmt(r.investedAmount) : '—',
+      r.remainingCash != null ? fmt(r.remainingCash) : '—',
+    ]);
+
+    const html = [
+      '<table><thead><tr>',
+      headers.map(h => `<th>${h}</th>`).join(''),
+      '</tr></thead><tbody>',
+      rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join(''),
+      '</tbody></table>',
+    ].join('');
+
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }) }),
+      ]);
+    } catch {
+      const md = [
+        `| ${headers.join(' | ')} |`,
+        `| ${headers.map(() => '---').join(' | ')} |`,
+        ...rows.map(r => `| ${r.join(' | ')} |`),
+      ].join('\n');
+      await navigator.clipboard.writeText(md);
+    }
+
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   async function handleCalculate() {
     if (!canCalculate) return;
@@ -113,6 +152,12 @@ export function SipSection({ allocations, initialAmount, onAmountChange }: Props
           <div className="card">
             <div className="card-header">
               <h2 className="card-title">Purchase Recommendations</h2>
+              <button
+                className={`btn btn-secondary copy-btn${copied ? ' copied' : ''}`}
+                onClick={handleCopy}
+              >
+                {copied ? '✓ Copied' : 'Copy'}
+              </button>
             </div>
             <div className="table-scroll">
               <table className="results-table">
