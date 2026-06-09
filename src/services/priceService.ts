@@ -113,10 +113,11 @@ function parsePriceFromHtml(html: string, symbol: string): number {
     for (const sel of selectors) {
       const el = domDoc.querySelector(sel);
       if (el) {
-        const price = parseFloat(
-          (el.textContent ?? '').replace(/[^0-9.]/g, '').trim(),
-        );
-        if (isValidPrice(price)) return price;
+        const m = (el.textContent ?? '').match(/([\d,]+\.?\d*)/);
+        if (m) {
+          const price = parseFloat(m[1].replace(/,/g, ''));
+          if (isValidPrice(price)) return price;
+        }
       }
     }
   }
