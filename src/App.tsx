@@ -17,17 +17,8 @@ export default function App() {
   const [bootstrapping, setBootstrapping] = useState(true);
   const [bootError, setBootError] = useState<string | null>(null);
 
-  const mockMode = import.meta.env.VITE_USE_MOCK_PRICES === 'true';
-
   useEffect(() => {
     if (!isFirebaseConfigured) {
-      if (mockMode) {
-        setBootstrapping(false);
-        return;
-      }
-      setBootError(
-        'Firebase is not configured. Copy .env.example to .env.local and fill in your Firebase credentials.',
-      );
       setBootstrapping(false);
       return;
     }
@@ -52,12 +43,12 @@ export default function App() {
   }
 
   async function handleSave() {
-    if (!mockMode) await saveAllocations(allocations);
+    if (isFirebaseConfigured) await saveAllocations(allocations);
   }
 
   async function handleAmountChange(amount: number) {
     setLastSipAmount(amount);
-    if (!mockMode) savePreferences({ lastSipAmount: amount }).catch(() => {/* non-critical */});
+    if (isFirebaseConfigured) savePreferences({ lastSipAmount: amount }).catch(() => {/* non-critical */});
   }
 
   if (bootstrapping) {

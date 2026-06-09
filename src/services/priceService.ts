@@ -19,6 +19,11 @@ const MOCK_PRICES: Record<string, number> = {
 };
 
 export async function fetchStockPrice(symbol: string): Promise<number> {
+  if (import.meta.env.VITE_USE_MOCK_PRICES === 'true') {
+    await new Promise(r => setTimeout(r, 300 + Math.random() * 400));
+    const price = MOCK_PRICES[symbol] ?? (50 + Math.random() * 800);
+    return Math.round(price * 100) / 100;
+  }
 
   const url = `${PSX_BASE}/${encodeURIComponent(symbol)}`;
 
@@ -33,7 +38,6 @@ export async function fetchStockPrice(symbol: string): Promise<number> {
 
     const html = await res.text();
     if (html.length < 200) throw new Error(`Empty response for ${symbol}`);
-    console.log(`HTML for ${symbol}`, html);
 
     return parsePriceFromHtml(html, symbol);
   } catch (err) {
@@ -88,11 +92,13 @@ function parsePriceFromHtml(html: string, symbol: string): number {
     }
   }
 
-  // Strategy 2: DOM element selectors
+  // Strategy 2: DOM element selectors — quote__close matches "Rs.490.35" on dps.psx.com.pk
   if (typeof DOMParser !== 'undefined') {
     const parser = new DOMParser();
     const domDoc = parser.parseFromString(html, 'text/html');
     const selectors = [
+      '#quote .quote__close',
+      '.quote__close',
       '.quote-price',
       '.current-price',
       '.last-price',
@@ -108,7 +114,7 @@ function parsePriceFromHtml(html: string, symbol: string): number {
       const el = domDoc.querySelector(sel);
       if (el) {
         const price = parseFloat(
-          (el.textContent ?? '').replace(/,/g, '').trim(),
+          (el.textContent ?? '').replace(/[^0-9.]/g, '').trim(),
         );
         if (isValidPrice(price)) return price;
       }
