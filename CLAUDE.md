@@ -11,7 +11,7 @@ src/
   types/index.ts            — All shared TypeScript interfaces
   services/
     firebaseService.ts      — Firestore read/write (allocations + preferences)
-    priceService.ts         — PSX price fetching via CORS proxy; parsePriceFromHtml()
+    priceService.ts         — PSX price fetching via Vite dev proxy; parsePriceFromHtml()
     sipCalculator.ts        — Pure calculation logic (no side effects)
   components/
     AllocationManager.tsx   — CRUD UI for portfolio allocations
@@ -23,8 +23,9 @@ src/
 
 ## Key architectural decisions
 - **No Redux**: state lives in App.tsx and is passed via props.
-- **CORS proxy**: `priceService.ts` uses `allorigins.win` to fetch PSX HTML pages.
-  If the proxy is down or the page structure changes, update `parsePriceFromHtml()`.
+- **Vite dev proxy**: `priceService.ts` fetches `/psx/company/:symbol`, which Vite proxies to
+  `https://dps.psx.com.pk` server-side (see `vite.config.ts`). No third-party proxy needed.
+  If the page structure changes, update `parsePriceFromHtml()`.
 - **Mock mode**: set `VITE_USE_MOCK_PRICES=true` in `.env.local` to skip real fetches.
 - **Firestore rules**: must allow read/write for the collections `allocations` and `settings`.
   Lock these down with Firebase Authentication before sharing the app publicly.
@@ -37,7 +38,7 @@ src/
 - Add a stock price data source: replace/extend `fetchStockPrice()` in `priceService.ts`.
 - Add a user preference: add the field to `UserPreferences` in `types/index.ts`, then use
   `savePreferences / loadPreferences` in `firebaseService.ts`.
-- Change the CORS proxy URL: one constant `CORS_PROXY` at the top of `priceService.ts`.
+- Change the PSX proxy target: update `vite.config.ts` server.proxy and `PSX_BASE` in `priceService.ts`.
 
 ## Running locally
 ```bash

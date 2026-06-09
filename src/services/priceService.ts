@@ -1,9 +1,8 @@
-// PSX price fetching via CORS proxy (allorigins.win).
+// PSX price fetching via Vite dev proxy (/psx → dps.psx.com.pk).
 // The parsePriceFromHtml function tries multiple strategies against dps.psx.com.pk pages.
 // If the page structure changes, update parsePriceFromHtml — it is intentionally isolated here.
 
-const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
-const PSX_BASE = 'https://dps.psx.com.pk/company';
+const PSX_BASE = '/psx/company';
 const FETCH_TIMEOUT_MS = 20_000;
 
 const MOCK_PRICES: Record<string, number> = {
@@ -20,26 +19,21 @@ const MOCK_PRICES: Record<string, number> = {
 };
 
 export async function fetchStockPrice(symbol: string): Promise<number> {
-  if (import.meta.env.VITE_USE_MOCK_PRICES === 'true') {
-    await new Promise(r => setTimeout(r, 300 + Math.random() * 400));
-    const price = MOCK_PRICES[symbol] ?? (50 + Math.random() * 800);
-    return Math.round(price * 100) / 100;
-  }
 
-  const targetUrl = `${PSX_BASE}/${encodeURIComponent(symbol)}`;
-  const proxyUrl = `${CORS_PROXY}${encodeURIComponent(targetUrl)}`;
+  const url = `${PSX_BASE}/${encodeURIComponent(symbol)}`;
 
   const controller = new AbortController();
   const timerId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    const res = await fetch(proxyUrl, { signal: controller.signal });
+    const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timerId);
 
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${symbol}`);
 
     const html = await res.text();
     if (html.length < 200) throw new Error(`Empty response for ${symbol}`);
+    console.log(`HTML for ${symbol}`, html);
 
     return parsePriceFromHtml(html, symbol);
   } catch (err) {
