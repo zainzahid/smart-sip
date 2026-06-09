@@ -2,7 +2,9 @@
 // The parsePriceFromHtml function tries multiple strategies against dps.psx.com.pk pages.
 // If the page structure changes, update parsePriceFromHtml — it is intentionally isolated here.
 
-const PSX_BASE = '/psx/company';
+const PSX_BASE = import.meta.env.VITE_PSX_PROXY_URL
+  ? `${import.meta.env.VITE_PSX_PROXY_URL}/company`
+  : '/psx/company';
 const FETCH_TIMEOUT_MS = 20_000;
 
 const MOCK_PRICES: Record<string, number> = {
