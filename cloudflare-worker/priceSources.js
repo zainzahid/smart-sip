@@ -28,16 +28,29 @@ export async function fetchSourcePrice(source, symbol) {
     return await extractPrice(response, selector, source === 'dps');
   } finally {
     clearTimeout(timer);
+    controller.abort();
   }
 }
 
 async function extractPrice(response, selector, hasCurrencyPrefix) {
+  if (!response.body) throw new Error('Empty upstream response');
+  let bytes = 0;
+  const body = response.body.pipeThrough(new TransformStream({
+    transform(chunk, controller) {
+      bytes += chunk.byteLength;
+      if (bytes > 2 * 1024 * 1024) throw new Error('Upstream response exceeds 2 MB');
+      controller.enqueue(chunk);
+    },
+  }));
   let text = '';
   let matches = 0;
   await new HTMLRewriter().on(selector, {
     element() { matches++; },
-    text(chunk) { text += chunk.text; },
-  }).transform(response).text();
+    text(chunk) {
+      text += chunk.text;
+      if (text.length > 64) throw new Error('Invalid price text');
+    },
+  }).transform(new Response(body)).body.pipeTo(new WritableStream());
 
   const value = (hasCurrencyPrefix ? text.replace(/^\s*Rs\.\s*/i, '') : text).trim();
   const price = Number(value.replace(/,/g, ''));

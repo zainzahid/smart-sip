@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "worker:login": "npx wrangler@4 login",
-    "worker:dev": "npx wrangler@4 dev --config cloudflare-worker/wrangler.jsonc --port 8787",
+    "worker:dev": "npx wrangler@4 dev --config cloudflare-worker/wrangler.jsonc --port 8787 --var ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173",
+    "worker:logs": "npx wrangler@4 tail --config cloudflare-worker/wrangler.jsonc",
     "worker:dev:sarmaaya": "npm run worker:dev -- --var PRICE_SOURCE:sarmaaya",
     "worker:deploy": "npx wrangler@4 deploy --config cloudflare-worker/wrangler.jsonc",
     "build": "tsc -b && vite build",

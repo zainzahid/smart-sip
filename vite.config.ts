@@ -31,6 +31,8 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:8787',
+        // Same-origin browser GETs may omit Origin; this proxy runs only in dev.
+        headers: { Origin: 'http://localhost:5173' },
         changeOrigin: true,
         rewrite: path => path.replace(/^\/api/, ''),
       },
