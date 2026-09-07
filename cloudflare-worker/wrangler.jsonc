@@ -1,0 +1,9 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "dps-psx-proxy",
+  "main": "psx-proxy.js",
+  "compatibility_date": "2026-09-07",
+  "workers_dev": true,
+  "keep_vars": true,
+  "observability": { "enabled": true }
+}

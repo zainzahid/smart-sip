@@ -29,10 +29,10 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      '/psx': {
-        target: 'https://dps.psx.com.pk',
+      '/api': {
+        target: 'http://localhost:8787',
         changeOrigin: true,
-        rewrite: path => path.replace(/^\/psx/, ''),
+        rewrite: path => path.replace(/^\/api/, ''),
       },
     },
   },

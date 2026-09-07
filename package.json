@@ -5,6 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "worker:login": "npx wrangler@4 login",
+    "worker:dev": "npx wrangler@4 dev --config cloudflare-worker/wrangler.jsonc --port 8787",
+    "worker:dev:sarmaaya": "npm run worker:dev -- --var PRICE_SOURCE:sarmaaya",
+    "worker:deploy": "npx wrangler@4 deploy --config cloudflare-worker/wrangler.jsonc",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

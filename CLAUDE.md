@@ -23,7 +23,7 @@ src/
 
 ## Key architectural decisions
 - **No Redux**: state lives in App.tsx and is passed via props.
-- **Vite dev proxy**: `priceService.ts` fetches `/psx/company/:symbol`, which Vite proxies to
+- **Vite dev proxy**: `priceService.ts` fetches `:symbol`, which Vite proxies to
   `https://dps.psx.com.pk` server-side (see `vite.config.ts`). No third-party proxy needed.
   If the page structure changes, update `parsePriceFromHtml()`.
 - **Mock mode**: set `VITE_USE_MOCK_PRICES=true` in `.env.local` to skip real fetches.

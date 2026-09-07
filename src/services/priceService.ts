@@ -1,10 +1,6 @@
-// PSX price fetching via Vite dev proxy (/psx → dps.psx.com.pk).
-// The parsePriceFromHtml function tries multiple strategies against dps.psx.com.pk pages.
-// If the page structure changes, update parsePriceFromHtml — it is intentionally isolated here.
-
-const PSX_BASE = import.meta.env.VITE_PSX_PROXY_URL
-  ? `${import.meta.env.VITE_PSX_PROXY_URL}/company`
-  : '/psx/company';
+const proxyUrl = import.meta.env.VITE_PSX_PROXY_URL?.trim().replace(/\/+$/, '');
+// The Worker owns source URLs, HTML parsing, and fallback selection.
+const PRICE_BASE = `${proxyUrl || '/api'}/price`;
 const FETCH_TIMEOUT_MS = 20_000;
 
 const MOCK_PRICES: Record<string, number> = {
@@ -27,27 +23,27 @@ export async function fetchStockPrice(symbol: string): Promise<number> {
     return Math.round(price * 100) / 100;
   }
 
-  const url = `${PSX_BASE}/${encodeURIComponent(symbol)}`;
+  const url = `${PRICE_BASE}/${encodeURIComponent(symbol)}`;
 
   const controller = new AbortController();
   const timerId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
     const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timerId);
-
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${symbol}`);
 
-    const html = await res.text();
-    if (html.length < 200) throw new Error(`Empty response for ${symbol}`);
-
-    return parsePriceFromHtml(html, symbol);
+    const quote = await res.json();
+    if (quote?.symbol !== symbol.toUpperCase() || typeof quote.price !== 'number' || !isValidPrice(quote.price)) {
+      throw new Error(`Invalid price response for ${symbol}`);
+    }
+    return quote.price;
   } catch (err) {
-    clearTimeout(timerId);
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error(`Timeout fetching price for ${symbol}`);
+      throw new Error(`Timeout fetching price for ${symbol}`, { cause: err });
     }
     throw err;
+  } finally {
+    clearTimeout(timerId);
   }
 }
 
@@ -72,77 +68,6 @@ export async function fetchAllPrices(
   return results;
 }
 
-function parsePriceFromHtml(html: string, symbol: string): number {
-  // Strategy 1: JSON data embedded in <script> tags
-  const scriptTags = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)];
-  for (const match of scriptTags) {
-    const script = match[1];
-    const jsonPatterns = [
-      /"current"\s*:\s*"?([\d,]+\.?\d*)"?/,
-      /"ldcp"\s*:\s*"?([\d,]+\.?\d*)"?/,
-      /"close"\s*:\s*"?([\d,]+\.?\d*)"?/,
-      /"last"\s*:\s*"?([\d,]+\.?\d*)"?/,
-      /"price"\s*:\s*"?([\d,]+\.?\d*)"?/,
-      /"ltp"\s*:\s*"?([\d,]+\.?\d*)"?/,
-    ];
-    for (const pat of jsonPatterns) {
-      const m = script.match(pat);
-      if (m) {
-        const price = parseFloat(m[1].replace(/,/g, ''));
-        if (isValidPrice(price)) return price;
-      }
-    }
-  }
-
-  // Strategy 2: DOM element selectors — quote__close matches "Rs.490.35" on dps.psx.com.pk
-  if (typeof DOMParser !== 'undefined') {
-    const parser = new DOMParser();
-    const domDoc = parser.parseFromString(html, 'text/html');
-    const selectors = [
-      '#quote .quote__close',
-      '.quote__close',
-      '.quote-price',
-      '.current-price',
-      '.last-price',
-      '.ltp',
-      '[data-field="last"]',
-      '[data-field="price"]',
-      '[data-field="ltp"]',
-      'span[class*="price"]',
-      'td[class*="price"]',
-      'div[class*="price"]',
-    ];
-    for (const sel of selectors) {
-      const el = domDoc.querySelector(sel);
-      if (el) {
-        const m = (el.textContent ?? '').match(/([\d,]+\.?\d*)/);
-        if (m) {
-          const price = parseFloat(m[1].replace(/,/g, ''));
-          if (isValidPrice(price)) return price;
-        }
-      }
-    }
-  }
-
-  // Strategy 3: Raw HTML regex — last resort
-  const rawPatterns = [
-    /last[^0-9]{0,40}([\d,]{1,8}\.?\d{0,2})/i,
-    /current[^0-9]{0,40}([\d,]{1,8}\.?\d{0,2})/i,
-    /price[^0-9]{0,40}([\d,]{1,8}\.?\d{0,2})/i,
-  ];
-  for (const pat of rawPatterns) {
-    const m = html.match(pat);
-    if (m) {
-      const price = parseFloat(m[1].replace(/,/g, ''));
-      if (isValidPrice(price)) return price;
-    }
-  }
-
-  throw new Error(
-    `Could not parse price for ${symbol}. Update parsePriceFromHtml() in priceService.ts to match the current page structure.`,
-  );
-}
-
 function isValidPrice(price: number): boolean {
-  return !isNaN(price) && price > 0 && price < 1_000_000;
+  return Number.isFinite(price) && price > 0 && price < 1_000_000;
 }
